@@ -1,0 +1,6 @@
+target/
+*/target/
+*.env
+Cargo.lock
+frontend/node_modules/
+frontend/dist/
