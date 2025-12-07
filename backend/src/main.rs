@@ -1,24 +1,30 @@
+
 use actix_web::{App, HttpServer, web};
 use db::Db;
 pub mod auth;
 pub use auth::*;
 pub mod models;
 pub use models::*;
+pub mod types;
+use tokio::sync::mpsc;
+use types::*;
+
+use crate::state::AppState;
+pub mod state;
+
+
 
 #[actix_web::main]
 async fn main(){
+    let (book_tx, book_rx) = mpsc::channel::<OrderBookMessage>(1000);
     dotenvy::dotenv().ok();
-    let db = Db::new().await.expect("failed toconnecte to database");
-    let _ = HttpServer::new(move || {
+    let db = Db::new().await.expect("fsafsafd");
+    let _ = HttpServer::new(move ||{
         App::new()
-            .service(web::resource("/signup").route(web::post().to(create_user)))
+            .app_data(web::Data::new(AppState{book_tx:book_tx.clone(),db:db.clone()}))
+            .service(web::resource("/signin").route(web::post().to(create_user)))
             .service(web::resource("/signin").route(web::post().to(signin)))
-            .app_data(actix_web::web::Data::new(db.clone()))
-            .service(web::scope("/api")
-                            .wrap(JwtMiddleware)
-                            .route("/me", web::get().to(me_handler))
-     
-            )
+            .service(web::resource("/order").route(web::post().to(place_order)))
     })
     .bind("0.0.0.0:3000")
     .unwrap()

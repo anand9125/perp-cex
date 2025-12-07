@@ -1,14 +1,15 @@
 use jsonwebtoken::{encode, Header, EncodingKey};
 use serde::{Serialize, Deserialize};
 use chrono::{Utc, Duration};
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Claims {
-    pub sub: i32,           
+    pub sub: Uuid,           
     pub exp: usize,        
 }
 
-pub fn create_jwt(user_id: i32) -> String {
+pub fn create_jwt(user_id: Uuid) -> String {
     let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET must be set");
 
     let expiration = Utc::now()
