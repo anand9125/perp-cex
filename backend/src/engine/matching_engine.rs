@@ -22,7 +22,7 @@ impl MatchingEngine{
 
    pub fn run(
       &mut self,
-      mut cmd_rx : mpsc::Receiver<OrderBookMessage>
+      cmd_rx : mpsc::Receiver<OrderBookMessage>
    ){
       let mut batch:Vec<OrderBookMessage> = Vec::with_capacity(256);
       loop{
@@ -45,7 +45,6 @@ impl MatchingEngine{
          //keys are 0,1,2,3 ordering rule sorts assending so sorting the batch order become critical high normal low
          batch.sort_by_key(|cmd| cmd.priority());
 
-         let batch_size = batch.len();
          self.process_batch(&mut batch);
          
          //clear batch
@@ -152,20 +151,50 @@ impl MatchingEngine{
       };
       
       if let Some(tx) = responder.take(){
-         let _ = tx.send(Ok(OrderResponse{
-            order_id,
-            status,
-            filled:total_filled,
-            remaining
+         let _ = tx.send(Ok(OrderResponse::PlacedOrder {
+               order_id,
+               status,
+               filled: total_filled, 
+               remaining 
          }));
       }
    }
 
-   fn handle_cancel_order(&mut self,order_id :  OrderId , user_id: UserId , responder:oneshot::Sender<Result<OrderResponse,String>>){
+   fn handle_cancel_order(
+      &mut self,
+      order_id :  OrderId ,
+      user_id: UserId ,
+      mut responder:Option<oneshot::Sender<Result<OrderResponse, String>>,>
+   ){
 
+      match self.order_book.cancel_order(&order_id, &user_id){
+         Ok(order)=>{
+            self.emit_event(Event::OrderCancelled { 
+               order_id,
+               user_id, 
+               timestamp: now_nanos() 
+            });
+            if let Some(tx) = responder.take(){
+                let _ = tx.send(Ok(OrderResponse::CanceledOrder { 
+                  order_id,
+                  user_id, 
+                  status: OrderStatus::Cancelled,
+                  message: "Order is caneeled".to_string()
+               }));
+            }
+         },
+         Err(e) =>{
+            if let Some(tx) = responder.take(){
+               let _ = tx.send(Ok(OrderResponse::Message { message: e }));
+
+            }
+            
+         }
+      };
    }
  
    fn handle_update_mark_price(&mut self , price: Price){
+
 
    }
    fn emit_event(&self,event:Event){

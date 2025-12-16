@@ -1,5 +1,3 @@
-use uuid::Uuid;
-
 use crate::{Fill, OrderId, Price, Quantity, UserId, types::Side};
 
 #[derive(Clone)]

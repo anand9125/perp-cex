@@ -1,6 +1,8 @@
 pub use serde::{Serialize,Deserialize};
 use tokio::sync::oneshot;
 use uuid::Uuid;
+use std::fmt;
+
 
 use crate::{Order, OrderId, Price, Quantity, UserId};
 
@@ -13,6 +15,11 @@ pub struct OrderRequest {
     pub quantity: f64,
     pub price: Option<f64>,
     pub leverage: u32,
+}
+#[derive(Deserialize,Serialize)]
+pub struct CanceledOrderRequest{
+    pub user_id : UserId,
+    pub order_id : OrderId
 }
 
 #[derive(Deserialize, Serialize,PartialEq,Clone,Copy)]
@@ -52,11 +59,36 @@ pub enum OrderStatus {
     Cancelled,
     New
 }
-pub struct OrderResponse{
-    pub order_id : OrderId,
-    pub status : OrderStatus,
-    pub filled : Quantity,
-    pub remaining : Quantity
+impl fmt::Display for OrderStatus {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let s = match self {
+            OrderStatus::Accepted        => "Accepted",
+            OrderStatus::FullyFilled     => "FullyFilled",
+            OrderStatus::PartiallyFilled => "PartiallyFilled",
+            OrderStatus::Rejected        => "Rejected",
+            OrderStatus::Cancelled       => "Cancelled",
+            OrderStatus::New             => "New",
+        };
+        write!(f, "{s}")
+    }
+}
+
+pub enum OrderResponse{
+    PlacedOrder{
+       order_id : OrderId,
+       status : OrderStatus,
+       filled : Quantity,
+       remaining : Quantity
+    },
+    CanceledOrder{
+        order_id : OrderId,
+        user_id : UserId,
+        status : OrderStatus,
+        message : String
+    },
+    Message{
+        message : String
+    }
 }
 pub enum OrderBookMessage {
     PlaceOrder {
@@ -68,7 +100,7 @@ pub enum OrderBookMessage {
     CancelOrder {
         order_id: OrderId,
         user_id: UserId,
-        responder: oneshot::Sender<Result<OrderResponse, String>>,
+        responder: Option<oneshot::Sender<Result<OrderResponse, String>>>,
     },
     UpdateMarkPrice {
         price: Price,
